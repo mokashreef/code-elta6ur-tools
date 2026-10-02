@@ -2,14 +2,9 @@
 /**
  * Sidebar مشترك
  */
-$categories = [
-    'career' => ['name' => 'العمل الحر والمهني', 'icon' => 'fa-rocket'],
-    'generators' => ['name' => 'المولدات', 'icon' => 'fa-magic'],
-    'text' => ['name' => 'النصوص والأكواد', 'icon' => 'fa-code'],
-    'productivity' => ['name' => 'الإنتاجية', 'icon' => 'fa-chart-line']
-];
+$categories = getAppCategories();
 
-// جلب الأدوات من قاعدة البيانات
+// جلب الأدوات
 try {
     $allTools = getAllTools();
     $toolsByCategory = [];
@@ -25,11 +20,11 @@ try {
     <div class="sidebar-header">
         <a href="<?= BASE_URL ?>" class="sidebar-logo">
             <div class="logo-icon">
-                <i class="fas fa-terminal"></i>
+                <i class="fas fa-cubes"></i>
             </div>
             <div class="logo-text">
-                <span class="logo-title">Code Elta6ur</span>
-                <span class="logo-subtitle">أدوات المبرمج السوري</span>
+                <span class="logo-title">كود التطور</span>
+                <span class="logo-subtitle">منصة الأدوات الشاملة</span>
             </div>
         </a>
     </div>
@@ -39,7 +34,13 @@ try {
         <!-- الرئيسية -->
         <a href="<?= BASE_URL ?>" class="nav-item <?= $currentPage === 'home' ? 'active' : '' ?>">
             <i class="fas fa-home"></i>
-            <span>الرئيسية</span>
+            <span>الرئيسية (<?= count($allTools) ?> أداة)</span>
+        </a>
+
+        <!-- منظومة كود التطور -->
+        <a href="<?= BASE_URL ?>ecosystem.php" class="nav-item <?= $currentPage === 'ecosystem' ? 'active' : '' ?>">
+            <i class="fas fa-network-wired text-accent"></i>
+            <span>منظومة كود التطور</span>
         </a>
 
         <?php if (isLoggedIn()): ?>
@@ -57,24 +58,38 @@ try {
 
         <!-- الأدوات حسب الفئات -->
         <?php foreach ($categories as $catKey => $catInfo): ?>
-        <div class="nav-group">
+        <?php 
+        $hasTools = isset($toolsByCategory[$catKey]) && count($toolsByCategory[$catKey]) > 0;
+        if ($hasTools):
+            $isGroupActive = false;
+            if (isset($currentTool)) {
+                foreach ($toolsByCategory[$catKey] as $t) {
+                    if ($t['slug'] === $currentTool) {
+                        $isGroupActive = true;
+                        break;
+                    }
+                }
+            }
+        ?>
+        <div class="nav-group <?= $isGroupActive ? '' : 'collapsed' ?>">
             <div class="nav-group-title">
                 <i class="fas <?= $catInfo['icon'] ?>"></i>
-                <span><?= $catInfo['name'] ?></span>
+                <span><?= $catInfo['short_name'] ?? $catInfo['name'] ?></span>
+                <span class="nav-count-badge"><?= count($toolsByCategory[$catKey]) ?></span>
                 <i class="fas fa-chevron-down nav-group-arrow"></i>
             </div>
             <div class="nav-group-items">
-                <?php if (isset($toolsByCategory[$catKey])): ?>
                 <?php foreach ($toolsByCategory[$catKey] as $tool): ?>
                 <a href="<?= BASE_URL ?>tool.php?slug=<?= $tool['slug'] ?>" 
-                   class="nav-item nav-sub-item <?= (isset($currentTool) && $currentTool === $tool['slug']) ? 'active' : '' ?>">
+                   class="nav-item nav-sub-item <?= (isset($currentTool) && $currentTool === $tool['slug']) ? 'active' : '' ?>"
+                   title="<?= sanitize($tool['name']) ?>">
                     <i class="fas <?= $tool['icon'] ?>"></i>
                     <span><?= sanitize($tool['name']) ?></span>
                 </a>
                 <?php endforeach; ?>
-                <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
         <?php endforeach; ?>
 
         <?php if (isAdmin()): ?>
@@ -110,8 +125,8 @@ try {
     <!-- Footer Sidebar -->
     <div class="sidebar-footer">
         <div class="sidebar-footer-text">
-            <span>النسخة <?= APP_VERSION ?></span>
-            <span>صنع بـ ❤️ في سوريا</span>
+            <span>النسخة <?= APP_VERSION ?> | كود التطور</span>
+            <span>تطوير: <a href="https://mohammad.code-elta6ur.com" target="_blank" rel="noopener noreferrer" style="color:var(--text-accent-light);text-decoration:none">م. محمد أبو خشريف</a></span>
         </div>
     </div>
 </aside>

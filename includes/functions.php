@@ -79,52 +79,66 @@ function csrfField() {
     return '<input type="hidden" name="' . CSRF_TOKEN_NAME . '" value="' . $token . '">';
 }
 
+require_once __DIR__ . '/tools_registry.php';
+require_once __DIR__ . '/tool_layout.php';
+
 /**
  * جلب جميع الأدوات
  */
 function getAllTools($activeOnly = true) {
-    $db = getDB();
-    $sql = "SELECT * FROM tools";
+    // الاعتماد على السجل الموحد الشامل
+    $tools = getAllRegisteredTools();
     if ($activeOnly) {
-        $sql .= " WHERE status = 1";
+        $tools = array_filter($tools, function($t) { return ($t['status'] ?? 1) == 1; });
     }
-    $sql .= " ORDER BY sort_order ASC";
-    return $db->query($sql)->fetchAll();
+    return array_values($tools);
 }
 
 /**
  * جلب الأدوات حسب الفئة
  */
 function getToolsByCategory($category, $activeOnly = true) {
-    $db = getDB();
-    $sql = "SELECT * FROM tools WHERE category = ?";
+    $tools = getRegisteredToolsByCategory($category);
     if ($activeOnly) {
-        $sql .= " AND status = 1";
+        $tools = array_filter($tools, function($t) { return ($t['status'] ?? 1) == 1; });
     }
-    $sql .= " ORDER BY sort_order ASC";
-    $stmt = $db->prepare($sql);
-    $stmt->execute([$category]);
-    return $stmt->fetchAll();
+    return array_values($tools);
 }
 
 /**
  * جلب أداة بالـ slug
  */
 function getToolBySlug($slug) {
-    $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM tools WHERE slug = ? AND status = 1");
-    $stmt->execute([$slug]);
-    return $stmt->fetch();
+    $tool = getRegisteredToolBySlug($slug);
+    if ($tool) return $tool;
+    
+    // محاولة من قاعدة البيانات إن وجدت
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM tools WHERE slug = ? AND status = 1");
+        $stmt->execute([$slug]);
+        return $stmt->fetch();
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 /**
  * جلب أداة بالـ ID
  */
 function getToolById($id) {
-    $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM tools WHERE id = ?");
-    $stmt->execute([$id]);
-    return $stmt->fetch();
+    $all = getAllRegisteredTools();
+    foreach ($all as $t) {
+        if ($t['id'] == $id) return $t;
+    }
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM tools WHERE id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    } catch (Throwable $e) {
+        return null;
+    }
 }
 
 /**
@@ -192,29 +206,98 @@ function deleteOutput($outputId, $userId) {
 }
 
 /**
- * جلب القوالب
+ * جلب القوالب مع دعم القوالب الافتراضية المدمجة
  */
 function getTemplates($toolSlug, $type = null) {
-    $db = getDB();
-    $sql = "SELECT * FROM templates WHERE tool_slug = ?";
-    $params = [$toolSlug];
+    try {
+        $db = getDB();
+        $sql = "SELECT * FROM templates WHERE tool_slug = ?";
+        $params = [$toolSlug];
+        if ($type) {
+            $sql .= " AND type = ?";
+            $params[] = $type;
+        }
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $results = $stmt->fetchAll();
+        if (!empty($results)) {
+            return $results;
+        }
+    } catch (Throwable $e) {}
+
+    // القوالب المدمجة الاحتياطية في حال كانت قاعدة البيانات فارغة
+    $builtIn = getDefaultBuiltInTemplates($toolSlug);
     if ($type) {
-        $sql .= " AND type = ?";
-        $params[] = $type;
+        $filtered = [];
+        foreach ($builtIn as $t) {
+            if ($t['type'] === $type) $filtered[] = $t;
+        }
+        return $filtered;
     }
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll();
+    return $builtIn;
 }
 
 /**
  * جلب قالب واحد
  */
 function getTemplate($toolSlug, $type = 'default') {
-    $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM templates WHERE tool_slug = ? AND type = ? LIMIT 1");
-    $stmt->execute([$toolSlug, $type]);
-    return $stmt->fetch();
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM templates WHERE tool_slug = ? AND type = ? LIMIT 1");
+        $stmt->execute([$toolSlug, $type]);
+        $res = $stmt->fetch();
+        if ($res) return $res;
+    } catch (Throwable $e) {}
+
+    $templates = getTemplates($toolSlug, $type);
+    if (!empty($templates)) {
+        return $templates[0];
+    }
+    // قالب افتراضي عام
+    return [
+        'tool_slug' => $toolSlug,
+        'type' => $type,
+        'name' => 'قالب افتراضي',
+        'content' => "{{content}}"
+    ];
+}
+
+/**
+ * القوالب المدمجة في المنصة
+ */
+function getDefaultBuiltInTemplates($toolSlug) {
+    $templates = [
+        'cv-generator' => [
+            ['tool_slug' => 'cv-generator', 'type' => 'professional', 'name' => 'قالب احترافي', 'content' => "# {{name}}\n## {{title}}\n\n### معلومات التواصل\n- 📧 البريد الإلكتروني: {{email}}\n- 📱 الهاتف: {{phone}}\n- 📍 الموقع: {{location}}\n- 🔗 LinkedIn: {{linkedin}}\n- 💻 GitHub: {{github}}\n\n---\n\n### الملخص المهني\n{{summary}}\n\n---\n\n### الخبرات العملية\n{{experience}}\n\n---\n\n### التعليم والشهادات\n{{education}}\n\n---\n\n### المهارات التقنية\n{{skills}}\n\n---\n\n### اللغات\n{{languages}}\n\n---\n\n### المشاريع البارزة\n{{projects}}"],
+            ['tool_slug' => 'cv-generator', 'type' => 'modern', 'name' => 'قالب عصري', 'content' => "╔══════════════════════════════════════╗\n║  {{name}}\n║  {{title}}\n╚══════════════════════════════════════╝\n\n◆ التواصل: {{email}} | {{phone}} | {{location}}\n◆ الروابط: {{linkedin}} | {{github}}\n\n◆ نبذة:\n{{summary}}\n\n◆ الخبرات:\n{{experience}}\n\n◆ المهارات:\n{{skills}}\n\n◆ المشاريع:\n{{projects}}\n\n◆ التعليم: {{education}} | اللغات: {{languages}}"],
+            ['tool_slug' => 'cv-generator', 'type' => 'minimal', 'name' => 'قالب بسيط ومختصر', 'content' => "{{name}} — {{title}}\n{{email}} | {{phone}} | {{location}}\n\nالهدف والنبذة:\n{{summary}}\n\nالخبرات:\n{{experience}}\n\nالمهارات التقنية: {{skills}}\nالتعليم: {{education}}\nالمشاريع: {{projects}}"]
+        ],
+        'proposal-generator' => [
+            ['tool_slug' => 'proposal-generator', 'type' => 'freelance', 'name' => 'رسالة عمل حر مقنعة', 'content' => "مرحباً {{client_name}}،\n\nقرأت تفاصيل مشروعك \"{{project_title}}\" بعناية، ويسعدني تنفيذ هذا المشروع باحترافية وجودة عالية.\n\n**لماذا أنا الخيار الأنسب؟**\n{{why_me}}\n\n**خطة ومنهجية العمل:**\n{{work_plan}}\n\n**المدة المتوقعة للتسليم:** {{duration}}\n**الميزانية المقترحة:** {{budget}}\n\n**نماذج أعمال سابقة ذات صلة:**\n{{portfolio_links}}\n\nجاهز للبدء فوراً ومناقشة أي تفاصيل إضافية.\n\nمع فائق الاحترام والتقدير،\n{{name}}"],
+            ['tool_slug' => 'proposal-generator', 'type' => 'formal', 'name' => 'عرض عمل رسمي للشركات', 'content' => "السيد/السيدة {{client_name}} المحترم/ة،\n\nتحية طيبة وبعد،\n\nبالإشارة إلى مشروعكم الموقر \"{{project_title}}\"، يسرني تقديم هذا العرض الفني والمالي لتنفيذ المشروع بأعلى معايير الجودة.\n\n**الخبرة والمؤهلات:**\n{{why_me}}\n\n**خطة التنفيذ ومراحل المشروع:**\n{{work_plan}}\n\n**الجدول الزمني:** {{duration}}\n**التكلفة الإجمالية:** {{budget}}\n\n**نماذج ومراجع الأعمال:**\n{{portfolio_links}}\n\nفي انتظار تشريفكم بالرد، ودمتم برعاية الله.\n\nمقدم العرض:\n{{name}}"]
+        ],
+        'readme-generator' => [
+            ['tool_slug' => 'readme-generator', 'type' => 'standard', 'name' => 'قالب README قياسي', 'content' => "# {{project_name}}\n\n> {{description}}\n\n## ✨ المميزات الرئيسية\n{{features}}\n\n## 📋 المتطلبات\n{{requirements}}\n\n## 🚀 التثبيت والتشغيل\n```bash\n{{installation}}\n```\n\n## 💻 طريقة الاستخدام\n{{usage}}\n\n## 🤝 المساهمة\n{{contributing}}\n\n## 📝 الترخيص\n{{license}}\n\n## 📬 للتواصل والدعم\n{{contact}}"]
+        ],
+        'cover-letter' => [
+            ['tool_slug' => 'cover-letter', 'type' => 'professional', 'name' => 'خطاب تغطية احترافي', 'content' => "الاسم: {{name}}\nالبريد: {{email}} | الهاتف: {{phone}}\nالتاريخ: {{date}}\n\nإلى: إدارة التوظيف والموارد البشرية في {{company}}\n\nالموضوع: التقدم لشغل وظيفة {{position}}\n\nتحية طيبة وبعد،\n\nيسرني أن أتقدم بطلبي لشغل وظيفة {{position}} المعلن عنها لدى مؤسستكم المرموقة {{company}}.\n\n{{intro_paragraph}}\n\n**أهم المهارات والمؤهلات:**\n{{qualifications}}\n\n**لماذا أود الانضمام إلى {{company}}؟**\n{{why_company}}\n\nكلي أمل أن أحظى بفرصة لإجراء مقابلة شخصية لمناقشة مؤهلاتي بتفصيل أكبر.\n\nوتفضلوا بقبول فائق الاحترام والتقدير،\n{{name}}"]
+        ],
+        'bio-generator' => [
+            ['tool_slug' => 'bio-generator', 'type' => 'short', 'name' => 'نبذة سريعة', 'content' => "{{name}} | {{title}} متخصص في {{specialization}} بخبرة {{years}} سنوات. {{achievement}} 🚀"],
+            ['tool_slug' => 'bio-generator', 'type' => 'professional', 'name' => 'نبذة مهنية متكاملة', 'content' => "{{name}} هو {{title}} متخصص في {{specialization}} ويمتلك خبرة تمتد لـ {{years}} سنوات. نجح في تنفيذ وإنجاز {{projects_count}} مشروع بمستوى احترافي.\n\n{{achievement}}\n\nالمهارات الأساسية: {{skills}}.\nللتواصل: {{email}} | {{linkedin}}"]
+        ],
+        'code-templates' => [
+            ['tool_slug' => 'code-templates', 'type' => 'html-boilerplate', 'name' => 'قالب HTML5 متجاوب', 'content' => "<!DOCTYPE html>\n<html lang=\"ar\" dir=\"rtl\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>{{title}}</title>\n    <style>\n        body { font-family: 'Cairo', sans-serif; direction: rtl; margin: 0; padding: 2rem; background: #06080f; color: #f1f5f9; }\n    </style>\n</head>\n<body>\n    <h1>{{title}}</h1>\n    <p>مرحباً بك في موقعك الجديد!</p>\n</body>\n</html>"],
+            ['tool_slug' => 'code-templates', 'type' => 'js-fetch', 'name' => 'دالة Fetch API في JavaScript', 'content' => "// جلب وإرسال البيانات عبر API\nasync function apiRequest(url, method = 'GET', data = null) {\n    const options = {\n        method,\n        headers: { 'Content-Type': 'application/json' }\n    };\n    if (data) options.body = JSON.stringify(data);\n    \n    try {\n        const response = await fetch(url, options);\n        if (!response.ok) throw new Error('HTTP error! status: ' + response.status);\n        return await response.json();\n    } catch (err) {\n        console.error('API Error:', err);\n        throw err;\n    }\n}"]
+        ],
+        'portfolio-generator' => [
+            ['tool_slug' => 'portfolio-generator', 'type' => 'default', 'name' => 'صفحة بورتفوليو نصية', 'content' => "# 👋 مرحباً، أنا {{name}}\n## {{title}}\n\n{{bio}}\n\n---\n## 🚀 المشاريع\n{{projects}}\n\n---\n## 💼 الخبرات\n{{experience}}\n\n---\n## 🛠️ المهارات التقنية\n{{skills}}\n\n---\n## 📬 تواصل معي\n- البريد: {{email}}\n- GitHub: {{github}}\n- LinkedIn: {{linkedin}}"]
+        ]
+    ];
+
+    return $templates[$toolSlug] ?? [
+        ['tool_slug' => $toolSlug, 'type' => 'default', 'name' => 'قالب افتراضي', 'content' => "محتوى القالب الافتراضي"]
+    ];
 }
 
 /**
@@ -232,34 +315,44 @@ function applyTemplate($template, $data) {
  * تسجيل نشاط
  */
 function logAction($userId, $action, $details = null) {
-    $db = getDB();
-    $stmt = $db->prepare("INSERT INTO logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
-    $stmt->execute([$userId, $action, $details, $_SERVER['REMOTE_ADDR'] ?? '']);
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("INSERT INTO logs (user_id, action, details, ip_address) VALUES (?, ?, ?, ?)");
+        $stmt->execute([$userId, $action, $details, $_SERVER['REMOTE_ADDR'] ?? '']);
+    } catch (Throwable $e) {}
 }
 
 /**
  * التحقق من المفضلة
  */
 function isFavorite($userId, $toolId) {
-    $db = getDB();
-    $stmt = $db->prepare("SELECT id FROM favorites WHERE user_id = ? AND tool_id = ?");
-    $stmt->execute([$userId, $toolId]);
-    return $stmt->fetch() !== false;
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("SELECT id FROM favorites WHERE user_id = ? AND tool_id = ?");
+        $stmt->execute([$userId, $toolId]);
+        return $stmt->fetch() !== false;
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 /**
  * تبديل المفضلة
  */
 function toggleFavorite($userId, $toolId) {
-    $db = getDB();
-    if (isFavorite($userId, $toolId)) {
-        $stmt = $db->prepare("DELETE FROM favorites WHERE user_id = ? AND tool_id = ?");
-        $stmt->execute([$userId, $toolId]);
+    try {
+        $db = getDB();
+        if (isFavorite($userId, $toolId)) {
+            $stmt = $db->prepare("DELETE FROM favorites WHERE user_id = ? AND tool_id = ?");
+            $stmt->execute([$userId, $toolId]);
+            return false;
+        } else {
+            $stmt = $db->prepare("INSERT INTO favorites (user_id, tool_id) VALUES (?, ?)");
+            $stmt->execute([$userId, $toolId]);
+            return true;
+        }
+    } catch (Throwable $e) {
         return false;
-    } else {
-        $stmt = $db->prepare("INSERT INTO favorites (user_id, tool_id) VALUES (?, ?)");
-        $stmt->execute([$userId, $toolId]);
-        return true;
     }
 }
 
@@ -267,52 +360,42 @@ function toggleFavorite($userId, $toolId) {
  * جلب المفضلات
  */
 function getFavorites($userId) {
-    $db = getDB();
-    $stmt = $db->prepare("
-        SELECT t.* FROM favorites f 
-        JOIN tools t ON f.tool_id = t.id 
-        WHERE f.user_id = ? AND t.status = 1 
-        ORDER BY f.created_at DESC
-    ");
-    $stmt->execute([$userId]);
-    return $stmt->fetchAll();
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("
+            SELECT t.* FROM favorites f 
+            JOIN tools t ON f.tool_id = t.id 
+            WHERE f.user_id = ? AND t.status = 1 
+            ORDER BY f.created_at DESC
+        ");
+        $stmt->execute([$userId]);
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        return [];
+    }
 }
 
 /**
- * البحث في الأدوات
+ * البحث الذكي في الأدوات عبر السجل الشامل
  */
 function searchTools($query) {
-    $db = getDB();
-    $searchTerm = "%{$query}%";
-    $stmt = $db->prepare("SELECT * FROM tools WHERE status = 1 AND (name LIKE ? OR description LIKE ?) ORDER BY sort_order ASC");
-    $stmt->execute([$searchTerm, $searchTerm]);
-    return $stmt->fetchAll();
+    return searchRegisteredTools($query);
 }
 
 /**
  * أسماء الفئات بالعربي
  */
 function getCategoryName($category) {
-    $categories = [
-        'career' => 'العمل الحر والمهني',
-        'generators' => 'المولدات',
-        'text' => 'النصوص والأكواد',
-        'productivity' => 'الإنتاجية'
-    ];
-    return $categories[$category] ?? $category;
+    $categories = getAppCategories();
+    return $categories[$category]['name'] ?? ($categories[$category]['short_name'] ?? $category);
 }
 
 /**
  * أيقونة الفئة
  */
 function getCategoryIcon($category) {
-    $icons = [
-        'career' => 'fa-rocket',
-        'generators' => 'fa-magic',
-        'text' => 'fa-code',
-        'productivity' => 'fa-chart-line'
-    ];
-    return $icons[$category] ?? 'fa-tools';
+    $categories = getAppCategories();
+    return $categories[$category]['icon'] ?? 'fa-tools';
 }
 
 /**

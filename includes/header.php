@@ -10,8 +10,22 @@ $currentPage = $currentPage ?? '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <meta name="description" content="<?= APP_DESCRIPTION ?>">
-    <title><?= sanitize($pageTitle) ?> - <?= APP_NAME ?></title>
+    <meta name="description" content="<?= sanitize($seoDescription ?? APP_DESCRIPTION) ?>">
+    <?php if (!empty($seoKeywords)): ?>
+    <meta name="keywords" content="<?= sanitize($seoKeywords) ?>">
+    <?php endif; ?>
+    <?php if (!empty($canonicalUrl)): ?>
+    <link rel="canonical" href="<?= $canonicalUrl ?>">
+    <?php endif; ?>
+    <!-- Open Graph & Social SEO -->
+    <meta property="og:title" content="<?= sanitize($pageTitle) ?> - <?= APP_NAME_AR ?>">
+    <meta property="og:description" content="<?= sanitize($seoDescription ?? APP_DESCRIPTION) ?>">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ar_AR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="<?= sanitize($pageTitle) ?> - <?= APP_NAME_AR ?>">
+    <meta name="twitter:description" content="<?= sanitize($seoDescription ?? APP_DESCRIPTION) ?>">
+    <title><?= sanitize($pageTitle) ?> - <?= APP_NAME_AR ?></title>
     
     <!-- الخطوط -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

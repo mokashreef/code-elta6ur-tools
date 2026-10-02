@@ -6,12 +6,25 @@
 
 // اسم التطبيق
 define('APP_NAME', 'Code Elta6ur Tools');
-define('APP_NAME_AR', 'كود التطور - أدوات السوري');
-define('APP_VERSION', '1.0.0');
-define('APP_DESCRIPTION', 'منصة أدوات عملية للمبرمج السوري');
+define('APP_NAME_AR', 'كود التطور - منصة الأدوات الشاملة');
+define('APP_VERSION', '2.0.0');
+define('APP_DESCRIPTION', 'منصة عربية شاملة للأدوات العملية: أدوات مالية، حاسبات البناء والطاقة، نصوص، تعليم، وأدوات المطورين');
 
-// المسار الأساسي - عدّل حسب السيرفر
-define('BASE_URL', '/');  // لا تغيّر إذا المشروع في public_html مباشرة
+// المسار الأساسي التلقائي
+if (!defined('BASE_URL')) {
+    $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+    $scriptDir = dirname($scriptName);
+    $scriptDir = str_replace('\\', '/', $scriptDir);
+    // إذا كان المجلد الجذر أو داخل مجلد فرعي
+    if (in_array(basename($scriptDir), ['admin', 'auth', 'user', 'api'])) {
+        $baseUrl = dirname($scriptDir);
+    } else {
+        $baseUrl = $scriptDir;
+    }
+    $baseUrl = rtrim(str_replace('\\', '/', $baseUrl), '/') . '/';
+    if ($baseUrl === '//' || $baseUrl === '') $baseUrl = '/';
+    define('BASE_URL', $baseUrl);
+}
 
 // إعدادات الجلسة
 define('SESSION_LIFETIME', 86400); // 24 ساعة
