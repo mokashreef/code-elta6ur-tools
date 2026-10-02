@@ -213,23 +213,23 @@ http://127.0.0.1:8080/
 
 ## 🗄️ إعداد قواعد البيانات والتبديل التلقائي
 
-تم تصميم ملف الاتصال [`config/database.php`](file:///d:/my%20projects/كود%20التطور%20للسورين/config/database.php) بنظام **Zero-Config Smart Fallback**:
+تم تصميم ملف الاتصال [`config/database.php`](config/database.php) بنظام **Zero-Config Smart Fallback**:
 
 ```mermaid
-graph TD
-    A[طلب اتصال getDB] --> B{هل MySQL متاح ومتصل؟}
-    B -- نعم --> C[استخدام اتصال MySQL الإنتاجي]
-    B -- لا / محلياً --> D{هل ملف database.sqlite موجود؟}
-    D -- نعم --> E[استخدام قاعدة بيانات SQLite]
-    D -- لا --> F[إنشاء SQLite تلقائياً وتطبيق الجداول الأساسية]
+flowchart TD
+    A["طلب اتصال getDB"] --> B{"هل MySQL متاح ومتصل؟"}
+    B -->|"نعم"| C["استخدام اتصال MySQL الإنتاجي"]
+    B -->|"لا / محلياً"| D{"هل ملف database.sqlite موجود؟"}
+    D -->|"نعم"| E["استخدام قاعدة بيانات SQLite"]
+    D -->|"لا"| F["إنشاء SQLite تلقائياً وتطبيق الجداول الأساسية"]
     F --> E
 ```
 
 ### في حال أردت استخدام MySQL محلياً:
 1. أنشئ قاعدة بيانات باسم `elta6ur_tools`.
-2. استورد ملف الهيكل [`database/schema.sql`](file:///d:/my%20projects/كود%20التطور%20للسورين/database/schema.sql).
-3. استورد ملف البيانات [`database/seed.sql`](file:///d:/my%20projects/كود%20التطور%20للسورين/database/seed.sql).
-4. عدل بيانات الاتصال داخل [`config/database.php`](file:///d:/my%20projects/كود%20التطور%20للسورين/config/database.php):
+2. استورد ملف الهيكل [`database/schema.sql`](database/schema.sql).
+3. استورد ملف البيانات [`database/seed.sql`](database/seed.sql).
+4. عدل بيانات الاتصال داخل [`config/database.php`](config/database.php):
 ```php
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'elta6ur_tools');
@@ -246,7 +246,7 @@ define('DB_CHARSET', 'utf8mb4');
 
 ### خطوات إضافة أداة جديدة (مثال: `bmi-calculator`):
 
-#### 1. تسجيل الأداة في [`includes/tools_registry.php`](file:///d:/my%20projects/كود%20التطور%20للسورين/includes/tools_registry.php):
+#### 1. تسجيل الأداة في [`includes/tools_registry.php`](includes/tools_registry.php):
 أضف تعريف الأداة في مصفوفة السجل المركزي:
 ```php
 'bmi-calculator' => [
@@ -259,7 +259,7 @@ define('DB_CHARSET', 'utf8mb4');
 ],
 ```
 
-#### 2. إنشاء ملف الأداة في [`tools/bmi-calculator.php`](file:///d:/my%20projects/كود%20التطور%20للسورين/tools/):
+#### 2. إنشاء ملف الأداة في [`tools/`](tools/):
 استخدم المكونات الجاهزة من `includes/tool_layout.php`:
 ```php
 <?php
@@ -410,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 ## 🏗️ النشر على خادم الإنتاج (Deployment)
 
-يحتوي المستودع على سكربت نشر سحابي ذكي ومؤتمت [`scripts/deploy_to_server.py`](file:///d:/my%20projects/كود%20التطور%20للسورين/scripts/deploy_to_server.py) يعتمد على مكتبة `paramiko`:
+يحتوي المستودع على سكربت نشر سحابي ذكي ومؤتمت [`scripts/deploy_to_server.py`](scripts/deploy_to_server.py) يعتمد على مكتبة `paramiko`:
 
 ### خطوات النشر المؤتمت:
 1. تجهيز حزمة إنتاجية خفيفة تستثني الملفات المحلية (`.git`, `scripts/`, إلخ).
