@@ -1,0 +1,32 @@
+# Code Elta6ur Tools - Apache Configuration
+
+# منع الوصول المباشر للملفات الحساسة
+<FilesMatch "^(config|includes|database)">
+    Deny from all
+</FilesMatch>
+
+# حماية ملفات الإعدادات
+<Files "*.sql">
+    Deny from all
+</Files>
+
+# إعداد PHP
+php_flag display_errors Off
+php_value error_reporting E_ALL
+php_value upload_max_filesize 10M
+php_value post_max_size 10M
+
+# إعدادات الأمان
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# ضغط الملفات
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
+</IfModule>
+
+# Default charset
+AddDefaultCharset UTF-8
