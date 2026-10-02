@@ -5,6 +5,7 @@
 [![Database](https://img.shields.io/badge/Database-MySQL%20%7C%20SQLite3-00758F?style=flat-square&logo=sqlite&logoColor=white)](https://sqlite.org/)
 [![Version](https://img.shields.io/badge/Version-2.0.0-00d4ff?style=flat-square)](https://code-elta6ur.sy/)
 [![Interface](https://img.shields.io/badge/UI-Mobile--First%20%7C%20RTL%20%7C%20Dark%20Mode-6c63ff?style=flat-square)](#)
+[![PHP CI](https://github.com/mokashreef/code-elta6ur-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/mokashreef/code-elta6ur-tools/actions/workflows/ci.yml)
 
 منصة ويب عربية شاملة ومتطورة، تضم أكثر من **218 أداة وحاسبة عملية تفاعلية** تغطي مجالات المال والأعمال، البناء والتشطيب، الطاقة والكهرباء، السيارات والسفر، التعليم، معالجة النصوص، وأدوات المطورين.
 
