@@ -1,0 +1,31 @@
+name: PHP Syntax & Integrity CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-platform:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: pdo, pdo_sqlite, mbstring
+
+    - name: Check PHP Syntax on all files
+      run: |
+        find . -type f -name "*.php" -exec php -l {} +
+
+    - name: Verify Tools Registry Status
+      run: |
+        php scripts/verify_status.php
